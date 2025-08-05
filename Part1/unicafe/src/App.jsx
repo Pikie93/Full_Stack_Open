@@ -2,31 +2,75 @@ import { useState } from "react";
 
 const Header = (props) => <h1>{props.text}</h1>;
 
-const Part = (props) => {
+const StatisticLine = (props) => {
   return (
-    <p>
+    <div>
       {props.name} {props.score}
-    </p>
+    </div>
   );
 };
 
-const Content = (props) => {
+const Statistics = (props) => {
+  if (props.ratings.scores[3] === 0) {
+    return <div>No feedback given</div>;
+  }
   return (
-    <div>
-      <Part name={props.ratings.names[0]} score={props.ratings.scores[0]} />
-      <Part name={props.ratings.names[1]} score={props.ratings.scores[1]} />
-      <Part name={props.ratings.names[2]} score={props.ratings.scores[2]} />
-      <Part name={props.ratings.names[3]} score={props.ratings.scores[3]} />
-      <Part name={props.ratings.names[4]} score={props.ratings.scores[4]} />
-      <Part name={props.ratings.names[5]} score={props.ratings.scores[5]} />
-    </div>
+    <table>
+      <tr>
+        <td>
+          <StatisticLine
+            name={props.ratings.names[0]}
+            score={props.ratings.scores[0]}
+          />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <StatisticLine
+            name={props.ratings.names[1]}
+            score={props.ratings.scores[1]}
+          />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <StatisticLine
+            name={props.ratings.names[2]}
+            score={props.ratings.scores[2]}
+          />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <StatisticLine
+            name={props.ratings.names[3]}
+            score={props.ratings.scores[3]}
+          />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <StatisticLine
+            name={props.ratings.names[4]}
+            score={props.ratings.scores[4]}
+          />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <StatisticLine
+            name={props.ratings.names[5]}
+            score={props.ratings.scores[5]}
+          />
+        </td>
+      </tr>
+    </table>
   );
 };
 
 const Button = ({ onClick, text }) => <button onClick={onClick}>{text}</button>;
 
 const App = () => {
-  // save clicks of each button to its own state
   const headers = ["Give Feedback", "Statistics"];
   const [good, setGood] = useState(0);
   const [neutral, setNeutral] = useState(0);
@@ -77,7 +121,7 @@ const App = () => {
       <Button onClick={handleNeutral} text="Neutral" />
       <Button onClick={handleBad} text="Bad" />
       <Header text={headers[1]} />
-      <Content ratings={ratings} />
+      <Statistics ratings={ratings} />
     </div>
   );
 };
