@@ -3,7 +3,9 @@ const { test, after, describe, beforeEach } = require('node:test');
 const mongoose = require('mongoose');
 const supertest = require('supertest');
 const app = require('../app');
+const bcrypt = require('bcrypt');
 const Blog = require('../models/blog');
+const User = require('../models/user');
 const helper = require('./test_helper');
 
 const api = supertest(app);
@@ -22,10 +24,6 @@ describe('blog returns', () => {
       .expect('Content-Type', /application\/json/);
 
     assert.strictEqual(response.body.length, helper.initialBlogs.length);
-  });
-
-  after(async () => {
-    await mongoose.connection.close();
   });
 
   test('id is returned as id and not _id', async () => {
@@ -85,7 +83,7 @@ describe('blog returns', () => {
     });
   });
 
-  describe('deletion of a note', () => {
+  describe('deletion of a blog', () => {
     test('succeeds with status code 204 if id is valid', async () => {
       const blogsAtStart = await helper.blogsInDb();
       const blogToDelete = blogsAtStart[0];
@@ -99,7 +97,7 @@ describe('blog returns', () => {
     });
   });
 
-  describe('updating of a note', () => {
+  describe('updating of a blog', () => {
     test('update succeeds with new and correct info', async () => {
       const blogsAtStart = await helper.blogsInDb();
       const blogToUpdate = blogsAtStart[0];
@@ -122,4 +120,87 @@ describe('blog returns', () => {
       assert.strictEqual(updated.likes, blogToUpdate.likes + 10);
     });
   });
+});
+
+describe('user tests', () => {
+  describe('when there is initially one user in db', () => {
+    beforeEach(async () => {
+      await User.deleteMany({});
+
+      const passwordHash = await bcrypt.hash('sekret', 10);
+      const user = new User({ username: 'root', passwordHash });
+
+      await user.save();
+    });
+
+    test('creation succeeds with a fresh username', async () => {
+      const usersAtStart = await helper.usersInDb();
+
+      const newUser = {
+        username: 'mluukkai',
+        name: 'Matti Luukkainen',
+        password: 'salainen',
+      };
+
+      await api
+        .post('/api/users')
+        .send(newUser)
+        .expect(201)
+        .expect('Content-Type', /application\/json/);
+
+      const usersAtEnd = await helper.usersInDb();
+      assert.strictEqual(usersAtEnd.length, usersAtStart.length + 1);
+
+      const usernames = usersAtEnd.map((u) => u.username);
+      assert(usernames.includes(newUser.username));
+    });
+  });
+
+  describe('creating users', () => {
+    beforeEach(async () => {
+      await User.deleteMany({});
+    });
+    const baseUser = {
+      username: 'validUser',
+      name: 'valid user',
+      password: 'validPassword',
+    };
+
+    test('fails if username is missing and returns 400 status', async () => {
+      const newUser = { ...baseUser };
+      delete newUser.username;
+
+      await api.post('/api/users').send(newUser).expect(400);
+    });
+
+    test('fails if password is missing and returns 400 status', async () => {
+      const newUser = { ...baseUser };
+      delete newUser.password;
+
+      await api.post('/api/users').send(newUser).expect(400);
+    });
+
+    test('fails if username is too short and returns 400 status', async () => {
+      const newUser = { ...baseUser };
+      newUser.username = 'ab';
+
+      await api.post('/api/users').send(newUser).expect(400);
+    });
+
+    test('fails if password is too short and returns 400 status', async () => {
+      const newUser = { ...baseUser };
+      newUser.password = 'ab';
+
+      await api.post('/api/users').send(newUser).expect(400);
+    });
+
+    test('fails if username already exists and returns 400 status', async () => {
+      await api.post('/api/users').send(baseUser).expect(201);
+      await api.post('/api/users').send(baseUser).expect(400);
+    });
+  });
+});
+
+after(async () => {
+  await mongoose.connection.close();
 });
