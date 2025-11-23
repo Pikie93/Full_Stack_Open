@@ -9,6 +9,7 @@ const User = require('../models/user');
 const helper = require('./test_helper');
 
 const api = supertest(app);
+let token = null;
 
 beforeEach(async () => {
   await Blog.deleteMany({});
@@ -16,7 +17,7 @@ beforeEach(async () => {
   await Blog.insertMany(helper.initialBlogs);
 });
 
-describe('blog returns', () => {
+describe('blog tests', () => {
   test('correct amount of blogs are returned', async () => {
     const response = await api
       .get('/api/blogs')
@@ -35,16 +36,33 @@ describe('blog returns', () => {
   });
 
   describe('post new blog', () => {
-    test('post functions and blog count is increased to 4 with correct fields', async () => {
+    beforeEach(async () => {
+      await User.deleteMany({});
+
+      const newUser = {
+        username: 'mluukkai',
+        name: 'Matti Luukkainen',
+        password: 'salainen',
+      };
+
+      await api.post('/api/users').send(newUser);
+
+      const loginRespsone = await api.post('/api/login').send(newUser);
+
+      token = loginRespsone.body.token;
+    });
+
+    test.only('post functions and blog count is increased to 4 with correct fields', async () => {
       const newBlog = {
         title: 'Test',
-        author: 'TestAuthor',
+        author: 'Matti Luukkainen',
         url: 'https://testing.com',
         likes: 5,
       };
 
       await api
         .post('/api/blogs')
+        .set('Authorization', `Bearer ${token}`)
         .send(newBlog)
         .expect(201)
         .expect('Content-Type', /application\/json/);
@@ -55,6 +73,16 @@ describe('blog returns', () => {
 
       assert.strictEqual(response.body.length, helper.initialBlogs.length + 1);
       assert(titles.includes('Test'));
+    });
+
+    test.only('adding blog fails with 401 if token not provided', async () => {
+      const newBlog = {
+        title: 'No Token',
+        author: 'Nobody',
+        url: 'https://example.com',
+      };
+
+      await api.post('/api/blogs').send(newBlog).expect(401);
     });
 
     test('if likes property is missing, defaults to 0', async () => {

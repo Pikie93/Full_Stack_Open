@@ -1,4 +1,6 @@
+const User = require('../models/user');
 const logger = require('./logger');
+const jwt = require('jsonwebtoken');
 
 const requestLogger = (request, response, next) => {
   logger.info('Method:', request.method);
@@ -26,13 +28,43 @@ const errorHandler = (error, request, response, next) => {
     return response
       .status(400)
       .json({ error: 'expected `username` to be unique' });
+  } else if (error.name === 'JsonWebTokenError') {
+    return response.status(401).json({ error: 'token invalid' });
+  } else if (error.name === 'TokenExpiredError') {
+    return response.status(401).json({
+      error: 'token expired',
+    });
+  }
+  next(error);
+};
+
+const tokenExtractor = (request, response, next) => {
+  const authorization = request.get('authorization');
+  if (authorization && authorization.startsWith('Bearer ')) {
+    request.token = authorization.replace('Bearer ', '');
+  } else {
+    request.token = null;
   }
 
-  next(error);
+  next();
+};
+
+const userExtractor = async (request, response, next) => {
+  if (!request.token) {
+    request.user = null;
+    return next();
+  }
+
+  const decodedToken = jwt.verify(request.token, process.env.SECRET);
+  const user = await User.findById(decodedToken.id);
+  request.user = user;
+  next();
 };
 
 module.exports = {
   requestLogger,
   unknownEndpoint,
   errorHandler,
+  tokenExtractor,
+  userExtractor,
 };
